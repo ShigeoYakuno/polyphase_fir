@@ -1,7 +1,7 @@
 //==============================================================================
 // Polyphase FIR Filter (49 Taps, 1/7 Decimation)
 //==============================================================================
-module polyphase_fir_stage3 #(
+module poly_fir_stage3 #(
     parameter int DECIMATION_FACTOR = 7,
     parameter int TAP_LEN_ORIG      = 49,
     parameter int DATA_WIDTH        = 16,
@@ -16,19 +16,19 @@ module polyphase_fir_stage3 #(
 );
 
     // ============================================================================
-    // „Éë„É©„É°„Éº„ÇøË®àÁÆó
+    // ÉpÉâÉÅÅ[É^åvéZ
     // ============================================================================
 
     localparam TAP_LEN_PADDED = TAP_LEN_ORIG;
     localparam SUB_TAP_LEN = TAP_LEN_PADDED / DECIMATION_FACTOR;
     localparam int mul_width = DATA_WIDTH + COEF_WIDTH;
-    localparam int sub_acc_width = mul_width + $clog2(SUB_TAP_LEN); // 7„Çø„ÉÉ„ÉóÂàÜ„ÅÆÁ©çÂíå
-    localparam int final_acc_width = sub_acc_width + $clog2(DECIMATION_FACTOR); // 7ÂÄã„ÅÆÂíå
+    localparam int sub_acc_width = mul_width + $clog2(SUB_TAP_LEN); // 7É^ÉbÉvï™ÇÃêœòa
+    localparam int final_acc_width = sub_acc_width + $clog2(DECIMATION_FACTOR); // 7å¬ÇÃòa
     localparam signed [DATA_WIDTH-1:0] MAX_VAL = (1 << (DATA_WIDTH - 1)) - 1;
     localparam signed [DATA_WIDTH-1:0] MIN_VAL = -(1 << (DATA_WIDTH - 1));
 
     // ============================================================================
-    // „Éï„Ç£„É´„Çø‰øÇÊï∞ (49 taps)
+    // ÉtÉBÉãÉ^åWêî (49 taps)
     // ============================================================================
     localparam logic signed [COEF_WIDTH-1:0] fir_coef [TAP_LEN_ORIG-1:0] = '{
         16'd4,  16'd9,  16'd17,  16'd30,  16'd49,  16'd75,  16'd110,  16'd154,  16'd209,  16'd276, 
@@ -43,7 +43,7 @@ module polyphase_fir_stage3 #(
 
     localparam T_PolyCoefs poly_coefs = get_poly_coefs();
 
-    // ÂàùÊúüÂåñÁî®„ÅÆÈñ¢Êï∞„ÇíÂÆöÁæ©
+    // èâä˙âªópÇÃä÷êîÇíËã`
     function automatic T_PolyCoefs get_poly_coefs();
         T_PolyCoefs temp_coefs;
         for (int i = 0; i < DECIMATION_FACTOR; i++) begin
@@ -55,7 +55,7 @@ module polyphase_fir_stage3 #(
     endfunction
 
     // ============================================================================
-    // ÂÖ•Âäõ„Çπ„ÉÜ„Éº„Ç∏
+    // ì¸óÕÉXÉeÅ[ÉW
     // ============================================================================
     logic [$clog2(DECIMATION_FACTOR)-1:0] input_cnt;
     logic signed [DATA_WIDTH-1:0] sr_bank [DECIMATION_FACTOR-1:0][SUB_TAP_LEN-1:0];
@@ -89,7 +89,7 @@ module polyphase_fir_stage3 #(
     end
 
  // ============================================================================
- // ‰∏¶Âàó„Éï„Ç£„É´„ÇøË®àÁÆó„Çπ„ÉÜ„Éº„Ç∏ (1„Çµ„Ç§„ÇØ„É´ÈÅÖÂª∂)
+ // ï¿óÒÉtÉBÉãÉ^åvéZÉXÉeÅ[ÉW (1ÉTÉCÉNÉãíxâÑ)
  // ============================================================================
     logic signed [sub_acc_width-1:0] sub_filter_out [DECIMATION_FACTOR-1:0];
 
@@ -110,7 +110,7 @@ module polyphase_fir_stage3 #(
                 end
             end
 
-            // „Éë„Ç§„Éó„É©„Ç§„É≥„Çπ„ÉÜ„Éº„Ç∏1: ÊúÄÂàù„ÅÆ4„Çø„ÉÉ„Éó„ÇíË®àÁÆó
+            // ÉpÉCÉvÉâÉCÉìÉXÉeÅ[ÉW1: ç≈èâÇÃ4É^ÉbÉvÇåvéZ
             always_ff @(posedge clk) begin
                 if (rst) begin
                     mac_pipe_acc <= '0;
@@ -122,19 +122,21 @@ module polyphase_fir_stage3 #(
                     if (calc_trigger_pipe) begin
                         automatic logic signed [sub_acc_width-1:0] sum = '0;
                         for (int tap = 0; tap < 4; tap++) begin
+                            (* syn_multstyle = "dsp" *)
                             sum += sr_bank_reg[tap] * poly_coefs[k][tap];
                         end
                         mac_pipe_acc <= sum;
                     end
                 end
             end
-            // „Éë„Ç§„Éó„É©„Ç§„É≥„Çπ„ÉÜ„Éº„Ç∏2: ÊÆã„Çä„ÅÆ3„Çø„ÉÉ„Éó„ÇíË®àÁÆó„Åó„Å¶ÊúÄÁµÇÁµêÊûú„ÇíÂá∫Âäõ
+            // ÉpÉCÉvÉâÉCÉìÉXÉeÅ[ÉW2: écÇËÇÃ3É^ÉbÉvÇåvéZÇµÇƒç≈èIåãâ ÇèoóÕ
             always_ff @(posedge clk) begin
                 if (rst) begin
                     sub_filter_out[k] <= '0;
                 end else if (calc_trigger_pipe2) begin
                     automatic logic signed [sub_acc_width-1:0] sum = mac_pipe_acc;
                     for (int tap = 4; tap < SUB_TAP_LEN; tap++) begin
+                        (* syn_multstyle = "dsp" *)
                         sum += sr_bank_reg[tap] * poly_coefs[k][tap];
                     end
                     sub_filter_out[k] <= sum;
@@ -145,13 +147,13 @@ module polyphase_fir_stage3 #(
     endgenerate
 
     // ============================================================================
-    // „Éë„Ç§„Éó„É©„Ç§„É≥Âåñ„Åï„Çå„ÅüÂä†ÁÆóÂô®„ÉÑ„É™„Éº (7ÂÖ•Âäõ -> 3„Çµ„Ç§„ÇØ„É´ÈÅÖÂª∂)
+    // ÉpÉCÉvÉâÉCÉìâªÇ≥ÇÍÇΩâ¡éZäÌÉcÉäÅ[ (7ì¸óÕ -> 3ÉTÉCÉNÉãíxâÑ)
     // ============================================================================
     logic signed [sub_acc_width+0:0] sum_stage1 [3:0]; // 7->4
     logic signed [sub_acc_width+1:0] sum_stage2 [1:0]; // 4->2
     logic signed [final_acc_width-1:0] total_sum;      // 2->1
 
-    // Stage 1: 7 -> 4 Ôºà[0+1],[2+3],[4+5], [6]Á¥†ÈÄö„ÅóÔºâ
+    // Stage 1: 7 -> 4 Åi[0+1],[2+3],[4+5], [6]ëfí ÇµÅj
     always_ff @(posedge clk) begin
         if (rst) begin
             sum_stage1 <= '{default:'0};
@@ -159,7 +161,7 @@ module polyphase_fir_stage3 #(
             sum_stage1[0] <= sub_filter_out[0] + sub_filter_out[1];
             sum_stage1[1] <= sub_filter_out[2] + sub_filter_out[3];
             sum_stage1[2] <= sub_filter_out[4] + sub_filter_out[5];
-            sum_stage1[3] <= sub_filter_out[6];           // ÊÆã„Çä1Êú¨„ÅØÁ¥†ÈÄö„Åó
+            sum_stage1[3] <= sub_filter_out[6];           // écÇË1ñ{ÇÕëfí Çµ
         end
     end
 
@@ -182,16 +184,14 @@ module polyphase_fir_stage3 #(
         end
     end
 
-
     // ============================================================================
-    // Âá∫Âäõ„Çπ„ÉÜ„Éº„Ç∏
+    // èoóÕÉXÉeÅ[ÉW
     // ============================================================================
     logic [5:0] valid_pipeline;
     always_ff @(posedge clk) begin
         if (rst) valid_pipeline <= '0;
         else valid_pipeline <= {valid_pipeline[4:0], calc_trigger};
     end
-
     logic signed [final_acc_width-1:0] total_sum_q;
     always_ff @(posedge clk) begin
         if (rst) total_sum_q <= '0;
@@ -208,9 +208,9 @@ module polyphase_fir_stage3 #(
             if (valid_pipeline[5]) begin
                 logic signed [final_acc_width-1:0] scaled_out;
                 logic signed [DATA_WIDTH-1:0] saturated_out;
-                // „Çπ„Ç±„Éº„É™„É≥„Ç∞
+                // ÉXÉPÅ[ÉäÉìÉO
                 scaled_out = total_sum_q >>> 15;
-                // „Çµ„ÉÅ„É•„É¨„Éº„Ç∑„Éß„É≥
+                // ÉTÉ`ÉÖÉåÅ[ÉVÉáÉì
                 if (scaled_out > MAX_VAL) saturated_out = MAX_VAL;
                 else if (scaled_out < MIN_VAL) saturated_out = MIN_VAL;
                 else saturated_out = scaled_out[DATA_WIDTH-1:0];
